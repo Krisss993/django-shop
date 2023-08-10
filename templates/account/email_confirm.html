@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% load i18n %}
+{% load account %}
+
+{% block head_title %}{% trans "Potwierdź adres e-mail" %}{% endblock %}
+
+
+{% block content %}
+<div class="site-section" >
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-7">
+                <h1>{% trans "Potwierdź adres e-mail" %}</h1>
+
+                {% if confirmation %}
+
+                {% user_display confirmation.email_address.user as user_display %}
+
+                {% if can_confirm %}
+                <p>{% blocktrans with confirmation.email_address.email as email %}Proszę, potwierdź, że <a href="mailto:{{ email }}">{{ email }}</a> to adres e-mail użytkownika {{ user_display }}.{% endblocktrans %}</p>
+
+                <form method="post" action="{% url 'account_confirm_email' confirmation.key %}">
+                {% csrf_token %}
+                    <button type="submit">{% trans 'Potwierdź' %}</button>
+                </form>
+                {% else %}
+                <p>{% blocktrans %}Nie można potwierdzić {{ email }} ponieważ jest już potwierdzony przez inne konto.{% endblocktrans %}</p>
+                {% endif %}
+
+                {% else %}
+
+                {% url 'account_email' as email_url %}
+
+                <p>{% blocktrans %}Ten link potwierdzający e-mail wygasł lub jest nieprawidłowy. Proszę <a href="{{ email_url }}">wyślij nową prośbę o potwierdzenie e-mailem.</a>.{% endblocktrans %}</p>
+
+                {% endif %}
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
