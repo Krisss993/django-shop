@@ -5,11 +5,8 @@ from django.urls import reverse
 
 from cart.models import Order, Product, Category, ColourVariation, SizeVariation
 from staff.forms import ProductForm
-import tempfile
 
 
-
-# Create your tests here.
 class SetUpTests(TestCase):
     dummy_image = SimpleUploadedFile(
         name='dom.jpg',
@@ -26,12 +23,7 @@ class SetUpTests(TestCase):
                                                primary_category=self.category, price=100, stock=10)
         self.product2 = Product.objects.create(title='Product 2', image=self.dummy_image,
                                                primary_category=self.category, price=200, stock=5)
-        # colour = ColourVariation.objects.create(name='Red')
-        # size = SizeVariation.objects.create(name='M')
-        # self.product1.available_colours.add(colour)
-        # self.product1.available_sizes.add(size)
-        # print(self.product1.price)
-        # print(self.product1.available_sizes)
+
 
 class StaffViewTest(SetUpTests):
 
@@ -40,7 +32,6 @@ class StaffViewTest(SetUpTests):
         url = reverse('staff:staff')
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
-        # Check if the response redirected to the 'home' URL
         self.assertRedirects(response, reverse('home'))
 
     def test_staff_view_access_for_staff_user(self):
@@ -51,7 +42,6 @@ class StaffViewTest(SetUpTests):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'staff/staff.html')
-
         self.assertIn('orders', response.context)
         orders_in_context = response.context['orders']
         self.assertEqual(list(orders_in_context), [order1, order2])
@@ -71,7 +61,6 @@ class ProductListViewTest(SetUpTests):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'staff/product_list.html')
-
         self.assertIn('products', response.context)
         products_in_context = response.context['products']
         self.assertEqual(list(products_in_context), [self.product1, self.product2])
@@ -93,7 +82,7 @@ class ProductDeleteViewTest(SetUpTests):
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('staff:product-list'))
         updated_products_nr = Product.objects.count()
-        self.assertEqual(initial_products_nr-1, updated_products_nr)
+        self.assertEqual(initial_products_nr - 1, updated_products_nr)
 
 
 class ProductUpdateViewTest(SetUpTests):
@@ -111,7 +100,7 @@ class ProductUpdateViewTest(SetUpTests):
         size = SizeVariation.objects.create(name='Medium')
         self.product1.available_colours.add(colour)
         self.product1.available_sizes.add(size)
-        url = reverse('staff:product-update', kwargs={'pk': self.product1.pk})  # Replace with your actual URL pattern
+        url = reverse('staff:product-update', kwargs={'pk': self.product1.pk})
         updated_data = {
             'title': 'Updated Product',
             'description': 'Hello there',
@@ -129,11 +118,10 @@ class ProductUpdateViewTest(SetUpTests):
         self.assertEqual(self.product1.price, 20)
         self.assertIn(colour, self.product1.available_colours.all())
         self.assertIn(size, self.product1.available_sizes.all())
-        self.assertRedirects(response, reverse('staff:product-list'))  # Replace with your actual success URL
+        self.assertRedirects(response, reverse('staff:product-list'))
 
 
 class ProductCreateViewTest(SetUpTests):
-
 
     def test_product_create_view_access_for_no_staff_user(self):
         self.client.login(username='testuser', password='testpassword')
@@ -141,7 +129,6 @@ class ProductCreateViewTest(SetUpTests):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('home'))
-
 
     def test_product_create_view_valid(self):
         self.client.login(username='staffuser', password='staffpassword')
@@ -162,7 +149,7 @@ class ProductCreateViewTest(SetUpTests):
         response = self.client.post(reverse('staff:product-create'), data=data)
         created_objects_count = Product.objects.count()
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(starting_objects_count, created_objects_count-1)
+        self.assertEqual(starting_objects_count, created_objects_count - 1)
 
     def test_product_create_view_invalid(self):
         self.client.login(username='staffuser', password='staffpassword')
@@ -171,5 +158,3 @@ class ProductCreateViewTest(SetUpTests):
         self.assertFalse(form.is_valid())
         response = self.client.post(reverse('staff:product-create'), data=data)
         self.assertEqual(response.status_code, 200)
-
-

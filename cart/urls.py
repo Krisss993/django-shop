@@ -1,9 +1,8 @@
 from django.urls import path
+
 from . import views
 
-
 app_name = 'cart'
-
 
 urlpatterns = [
     path('shop/', views.ProductListView.as_view(), name='product-list'),
@@ -20,4 +19,3 @@ urlpatterns = [
     path('delivery/', views.DeliveryView.as_view(), name='delivery'),
 
 ]
-

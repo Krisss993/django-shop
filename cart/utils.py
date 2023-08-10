@@ -1,4 +1,4 @@
-from .models import Order, Delivery
+from .models import Order
 
 
 def get_or_set_order_session(request):
@@ -22,4 +22,3 @@ def get_or_set_order_session(request):
         order.save()
 
     return order
-

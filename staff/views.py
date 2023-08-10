@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render
 from django.urls import reverse
 from django.views import generic
+
 from cart.models import Order, Product
 from staff.forms import ProductForm
 from staff.mixins import StaffUserMixin
@@ -60,7 +60,3 @@ class ProductCreateView(LoginRequiredMixin, StaffUserMixin, generic.CreateView):
         form.save()
         print(form.cleaned_data['title'])
         return super(ProductCreateView, self).form_valid(form)
-
-
-
-

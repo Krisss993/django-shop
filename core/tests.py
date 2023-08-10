@@ -1,10 +1,10 @@
-from django.test import TestCase, Client, RequestFactory
-from django.urls import reverse
-from django.core import mail
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core import mail
+from django.test import TestCase, Client
+from django.urls import reverse
+
 from cart.models import Order
-from core.views import ProfileView
 
 
 class HomeViewTest(TestCase):
@@ -23,9 +23,9 @@ class ContactViewTest(TestCase):
 
     def test_contact_form_valid(self):
         contact_data = {
-            'imię':'Testname',
-            'email':'test@email.com',
-            'wiadomość':'Test message'
+            'imię': 'Testname',
+            'email': 'test@email.com',
+            'wiadomość': 'Test message'
         }
 
         response = self.client.post(reverse('contact'), data=contact_data)
@@ -50,32 +50,19 @@ class ContactViewTest(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
 
-
-
 class ProfileViewTest(TestCase):
     def setUp(self):
-        # Create a test user
         self.user = User.objects.create_user(username='testuser', password='testpassword')
-        self.client = Client()  # Create a test client
+        self.client = Client()
         self.url = self.client.get(reverse('profile'))
+
     def test_context_update_with_orders(self):
-        # Log in the test user
         self.client.login(username='testuser', password='testpassword')
-
-        # Create a test order for the logged-in user
         order = Order.objects.create(user=self.user, ordered=True)
-
-        # Send a GET request to the profile view using the test client
         url = reverse('profile')
         response = self.client.get(url)
-
-        # Check if the response status code is 200 (OK)
         self.assertEqual(response.status_code, 200)
-
-        # Check if the rendered template is 'profile.html'
         self.assertTemplateUsed(response, 'profile.html')
-
-        # Check if the 'orders' context variable contains the user's orders as a list
         self.assertIn('orders', response.context)
         orders_in_context = response.context['orders']
         self.assertEqual(list(orders_in_context), [order])
@@ -89,4 +76,3 @@ class ProfileViewTest(TestCase):
         self.assertIn('orders', response.context)
         orders_in_context = response.context['orders']
         self.assertEqual(list(orders_in_context), [])
-

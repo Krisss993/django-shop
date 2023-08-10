@@ -1,20 +1,18 @@
-import json
 import datetime
+import json
 
-
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, get_object_or_404, reverse, redirect
+from django.db.models import Q
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404, reverse, redirect
+from django.utils import timezone
 from django.views import generic
 
-from cart.models import Product, OrderItem, Address, Payment, Order, Category, Delivery
 from cart.forms import AddToCartForm, AddressForm, DeliveryForm
+from cart.models import Product, OrderItem, Address, Payment, Order, Category
 from cart.utils import get_or_set_order_session
-
-from django.utils import timezone
-from django.conf import settings
-from django.http import JsonResponse
-from django.db.models import Q
 
 
 class ProductListView(generic.ListView):
@@ -33,7 +31,6 @@ class ProductListView(generic.ListView):
             'categories': Category.objects.all()
         })
         return context
-
 
 
 class ProductDetailView(generic.FormView):
@@ -118,8 +115,6 @@ class CheckoutView(LoginRequiredMixin, generic.FormView):
     template_name = 'cart/checkout.html'
     form_class = AddressForm
 
-
-
     def get_success_url(self):
         return reverse('cart:payment')
 
@@ -142,7 +137,6 @@ class CheckoutView(LoginRequiredMixin, generic.FormView):
             )
             order.shipping_address = address
 
-
         if selected_billing_address:
             order.billing_address = selected_billing_address
         else:
@@ -163,7 +157,7 @@ class CheckoutView(LoginRequiredMixin, generic.FormView):
         return super(CheckoutView, self).form_valid(form)
 
     def get_form_kwargs(self):
-        kwargs=super(CheckoutView, self).get_form_kwargs()
+        kwargs = super(CheckoutView, self).get_form_kwargs()
         kwargs['user_id'] = self.request.user.id
         return kwargs
 
@@ -184,6 +178,7 @@ class PaymentView(generic.TemplateView):
         print(self.request.build_absolute_uri(reverse('cart:thank-you')))
         return context
 
+
 class ConfirmOrderView(generic.View):
     def post(self, request, *args, **kwargs):
         order = get_or_set_order_session(request)
@@ -199,7 +194,7 @@ class ConfirmOrderView(generic.View):
         order.ordered = True
         order.ordered_date = datetime.datetime.now(tz=timezone.utc)
         order.save()
-        return JsonResponse({"data":"Success"})
+        return JsonResponse({"data": "Success"})
 
 
 class ThankYouView(generic.TemplateView):

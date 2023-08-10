@@ -2,7 +2,6 @@ from django import forms
 from .models import OrderItem, Product, ColourVariation, SizeVariation, Address, Order, Delivery
 from django.contrib.auth import get_user_model
 
-
 User = get_user_model()
 
 
@@ -48,8 +47,6 @@ class AddressForm(forms.Form):
     selected_shipping_address = forms.ModelChoiceField(Address.objects.none(), required=False)
 
     selected_billing_address = forms.ModelChoiceField(Address.objects.none(), required=False)
-
-
 
     def __init__(self, *args, **kwargs):
         user_id = kwargs.pop('user_id')
@@ -101,7 +98,4 @@ class DeliveryForm(forms.ModelForm):
 
     class Meta:
         model = Order
-        fields = ['delivery',]
-
-
-
+        fields = ['delivery', ]

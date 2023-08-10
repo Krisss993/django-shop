@@ -1,26 +1,17 @@
 import json
 
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth.models import User
-from django.shortcuts import get_object_or_404, redirect
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.shortcuts import get_object_or_404
 from django.test import TestCase, Client
 from django.urls import reverse
 
-from .forms import AddressForm, AddToCartForm
 from .models import Product, Category, ColourVariation, SizeVariation, User, Order, OrderItem, Address, Payment, \
     Delivery
-from django import forms
-from django.http.response import Http404
 from .utils import get_or_set_order_session
-from .views import CartView, DeliveryView
-from unittest.mock import patch
-from django.test import RequestFactory
-from django.contrib.messages import get_messages
-from django.contrib.messages import constants
 
 
 class ProductListViewTest(TestCase):
-
     dummy_image = SimpleUploadedFile(
         name='test_image.jpg',
         content=open('media/test_image.jpg', 'rb').read(),
@@ -33,7 +24,6 @@ class ProductListViewTest(TestCase):
                                                primary_category=self.category, price=100, stock=10)
         self.product2 = Product.objects.create(title='Product 2', slug='product-2', image=self.dummy_image,
                                                primary_category=self.category, price=200, stock=5)
-        # Add more test data as needed
 
     def test_view_url_accessible_by_name(self):
         response = self.client.get(reverse('cart:product-list'))
@@ -47,7 +37,6 @@ class ProductListViewTest(TestCase):
         response = self.client.get(reverse('cart:product-list'))
         self.assertContains(response, self.product1.title)
         self.assertContains(response, self.product2.title)
-        # Add more assertions for other product attributes as needed
 
     def test_view_filters_products_by_category(self):
         category2 = Category.objects.create(name='Category 2')
@@ -63,14 +52,12 @@ class ProductListViewTest(TestCase):
         self.assertQuerysetEqual(response.context['categories'], Category.objects.all(), transform=lambda x: x)
 
     def test_view_context_contains_no_products_when_empty_database(self):
-        # Test when no products exist in the database
         Product.objects.all().delete()
         response = self.client.get(reverse('cart:product-list'))
         self.assertQuerysetEqual(response.context['object_list'], [])
 
 
 class ProductDetailViewTest(TestCase):
-
     dummy_image = SimpleUploadedFile(
         name='test_image.jpg',
         content=open('media/test_image.jpg', 'rb').read(),
@@ -79,14 +66,13 @@ class ProductDetailViewTest(TestCase):
 
     def setUp(self):
         self.category = Category.objects.create(name='Test Category')
-        self.product = Product.objects.create(title='Test Product', slug='test-product', image=self.dummy_image, price=100, stock=10,
-                                              primary_category=self.category)
+        self.product = Product.objects.create(title='Test Product', slug='test-product', image=self.dummy_image,
+                                              price=100, stock=10, primary_category=self.category)
         self.url = reverse('cart:product-detail', kwargs={'slug': self.product.slug})
         self.client = Client()
         self.user = User.objects.create_user(username='testuser', password='testpassword')
         self.order = Order.objects.create(user=self.user)
         self.client.login(username='testuser', password='testpassword')
-
 
     def test_view_url_accessible_by_name(self):
         response = self.client.get(self.url)
@@ -106,34 +92,6 @@ class ProductDetailViewTest(TestCase):
         response = self.client.get(wrong_url)
         self.assertEqual(response.status_code, 404)
 
-    # def test_form_valid_existing_item(self):
-    #     colour_choice = ColourVariation.objects.create(name='Red')
-    #     size_choice = SizeVariation.objects.create(name='M')
-    #     self.product.available_colours.add(colour_choice)
-    #     self.product.available_sizes.add(size_choice)
-    #
-    #     form_data = {
-    #         "colour": [colour_choice.pk],
-    #         "size": [size_choice.pk],
-    #         "quantity": 2,
-    #     }
-    #     item = self.order.items.create(
-    #         order=self.order,
-    #         product=self.product,
-    #         colour=colour_choice,
-    #         size=size_choice,
-    #         quantity=3,
-    #     )
-    #     form = AddToCartForm(data=form_data)
-    #
-    #     response = self.client.post(self.url, form_data)
-    #
-    #     self.assertEqual(response.status_code, 302)  # Redirect status code
-    #     updated_item = self.order.items.get(id=item.id)  # Refresh the item from the database
-    #     self.assertEqual(updated_item.quantity, 5)  # Existing quantity + new quantity
-
-
-
     def test_form_valid_creates_new_cart_item(self):
         initial_item_count = self.product.orderitem_set.count()
         colour_choice = ColourVariation.objects.create(name='Red')
@@ -146,10 +104,9 @@ class ProductDetailViewTest(TestCase):
             'size': size_choice.id,
             'quantity': 3,
         }
-        response = self.client.post(self.url, data)
-        self.assertEqual(response.status_code, 302)  # Redirect after successful form submission
 
-        # Refresh the product instance to get the updated count of order items
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, 302)
         self.product.refresh_from_db()
         self.assertEqual(self.product.orderitem_set.count(), initial_item_count + 1)
 
@@ -164,16 +121,13 @@ class ProductDetailViewTest(TestCase):
             'size': size_choice.id,
             'quantity': 15,
         }
+
         response = self.client.post(self.url, data)
-
-        self.assertEqual(response.status_code, 200)  # Form submission should return to the same page
-
+        self.assertEqual(response.status_code, 200)
         form = response.context['form']
         self.assertFalse(form.is_valid())
         self.assertEqual(
             form.errors['__all__'][0], f"Maksymalna dostępna ilość to: {self.product.stock}")
-
-    # Add more test cases as needed
 
 
 class CartViewTest(TestCase):
@@ -190,61 +144,38 @@ class CartViewTest(TestCase):
         self.assertTemplateUsed(response, 'cart/cart.html')
 
     def test_cart_view_with_order(self):
-        # Create an order
         order = Order.objects.create()
-
-        # Add the order_id to the session
         session = self.client.session
         session['order_id'] = order.id
         session.save()
-
-        # Login a user (optional)
         user = User.objects.create(username='testuser')
         self.client.force_login(user)
-
-        # Call the view using the test client
         response = self.client.get(reverse('cart:summary'))
-
-        # Assert that the view returns a successful response
         self.assertEqual(response.status_code, 200)
-
-        # Assert that the 'order' is present in the context and it matches the existing order
         self.assertIn('order', response.context)
         self.assertEqual(response.context['order'], order)
 
     def test_get_or_set_order_session_with_authenticated_user(self):
-        # Create an authenticated user
         user = User.objects.create(username='testuser')
         self.client.force_login(user)
-
-        # Call the 'get_or_set_order_session' function with the test client's request
         response = self.client.get(reverse('cart:summary'))
         request = response.wsgi_request
         order = get_or_set_order_session(request)
-
-        # Assert that the order's user is set to the authenticated user
         self.assertEqual(order.user, user)
 
     def test_get_or_set_order_session_without_authenticated_user(self):
-        # Create a request without an authenticated user
         request = self.client.get(reverse('cart:summary')).wsgi_request
-
-        # Call the 'get_or_set_order_session' function
         order = get_or_set_order_session(request)
-
-        # Assert that the order's user is None
         self.assertIsNone(order.user)
 
     def test_get_or_set_order_session_without_existing_order(self):
         request = self.client.get(reverse('cart:summary')).wsgi_request
-        request.session['order_id'] = 999  # Assume this order ID does not exist
+        request.session['order_id'] = 999
         order = get_or_set_order_session(request)
-
         self.assertIsInstance(order, Order)
         self.assertIsNone(order.user)
         self.assertFalse(order.ordered)
         self.assertIsNotNone(request.session.get('order_id'))
-
 
 
 class IncreaseQuantityViewTest(TestCase):
@@ -253,9 +184,6 @@ class IncreaseQuantityViewTest(TestCase):
         content=open('media/test_image.jpg', 'rb').read(),
         content_type='image/jpeg'
     )
-
-
-
 
     def setUp(self):
         self.client = Client()
@@ -280,21 +208,11 @@ class IncreaseQuantityViewTest(TestCase):
         self.assertRedirects(response, reverse('cart:summary'))
 
     def test_increase_quantity_view(self):
-        # Create an order item
-
-        # Authenticate the user (optional, if your view requires authentication)
         self.client.force_login(self.user)
-
-        # Call the 'IncreaseQuantityView'
         response = self.client.get(reverse('cart:increase-quantity', kwargs={'pk': self.order_item.pk}))
-
-        # Assert that the response is a redirect to the summary page
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('cart:summary'))
-
-        # Get the updated order item from the database
         updated_order_item = get_object_or_404(OrderItem, pk=self.order_item.pk)
-        # Assert that the quantity is increased by 1
         self.assertEqual(updated_order_item.quantity, self.order_item.quantity + 1)
 
 
@@ -319,25 +237,14 @@ class DecreaseQualityViewTest(TestCase):
                                                    size=self.size, quantity=2)
 
     def test_decrease_quantity_view(self):
-
-        # Create an order item
         order_item = OrderItem.objects.create(order=self.order, product=self.product, colour=self.colour,
                                               size=self.size, quantity=2)
         order_item.save()
-
-        # Authenticate the user (optional, if your view requires authentication)
         self.client.force_login(self.user)
-
-        # Call the 'IncreaseQuantityView'
         response = self.client.get(reverse('cart:decrease-quantity', kwargs={'pk': order_item.pk}))
-
-        # Assert that the response is a redirect to the summary page
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('cart:summary'))
-
-        # Get the updated order item from the database
         updated_order_item = get_object_or_404(OrderItem, pk=order_item.pk)
-        # Assert that the quantity is decreased by 1
         self.assertEqual(updated_order_item.quantity, order_item.quantity - 1)
 
     def test_delete_item_when_its_quantity_is_0(self):
@@ -346,16 +253,11 @@ class DecreaseQualityViewTest(TestCase):
         order_item.save()
         self.client.force_login(self.user)
         initial_order_item_count = OrderItem.objects.count()
-        # Call the 'IncreaseQuantityView'
         response = self.client.get(reverse('cart:decrease-quantity', kwargs={'pk': order_item.pk}))
-
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('cart:summary'))
-
-
         updated_order_item_count = OrderItem.objects.count()
         self.assertEqual(updated_order_item_count, initial_order_item_count - 1)
-
 
 
 class RemoveFromCartViewTest(TestCase):
@@ -366,7 +268,7 @@ class RemoveFromCartViewTest(TestCase):
     )
 
     def test_valid_url(self):
-        response=self.client.get(reverse('cart:remove-from-cart', kwargs={'pk':self.order_item.pk}))
+        response = self.client.get(reverse('cart:remove-from-cart', kwargs={'pk': self.order_item.pk}))
         self.assertEqual(response.status_code, 302)
 
     def setUp(self):
@@ -383,22 +285,14 @@ class RemoveFromCartViewTest(TestCase):
                                                    size=self.size, quantity=2)
 
     def test_remove_from_cart_view(self):
-
         order_item = OrderItem.objects.create(order=self.order, product=self.product, colour=self.colour,
                                               size=self.size, quantity=2)
         order_item.save()
-
-
-        # Get the initial count of order items
         initial_order_item_count = OrderItem.objects.count()
         response = self.client.get(reverse('cart:remove-from-cart', kwargs={'pk': order_item.pk}))
-        # Assert that the response is a redirect to the summary page
         self.assertEqual(response.status_code, 302)
         self.assertRedirects(response, reverse('cart:summary'))
-        # Get the updated count of order items from the database
         updated_order_item_count = OrderItem.objects.count()
-
-        # Assert that the number of order items decreased by 1 after deletion
         self.assertEqual(updated_order_item_count, initial_order_item_count - 1)
 
 
@@ -438,20 +332,16 @@ class CheckoutViewTest(TestCase):
         form_data = self.address_data.copy()
         form_data['selected_shipping_address'] = shipping_address.pk
         response = self.client.post(reverse('cart:checkout'), data=form_data)
-
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('cart:payment'))
-
         order = Order.objects.get(user=self.user)
         self.assertEqual(order.shipping_address, shipping_address)
 
     def test_checkout_view_with_new_shipping_address(self):
         self.client.force_login(self.user)
         response = self.client.post(reverse('cart:checkout'), data=self.address_data)
-
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('cart:payment'))
-
         order = Order.objects.get(user=self.user)
         self.assertEqual(order.shipping_address.address_line_1, self.address_data['Adres_zamieszkania1'])
         self.assertEqual(order.shipping_address.address_line_2, self.address_data['Adres_zamieszkania2'])
@@ -472,20 +362,16 @@ class CheckoutViewTest(TestCase):
         form_data = self.address_data.copy()
         form_data['selected_billing_address'] = billing_address.pk
         response = self.client.post(reverse('cart:checkout'), data=form_data)
-
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('cart:payment'))
-
         order = Order.objects.get(user=self.user)
         self.assertEqual(order.billing_address, billing_address)
 
     def test_checkout_view_with_new_billing_address(self):
         self.client.force_login(self.user)
         response = self.client.post(reverse('cart:checkout'), data=self.address_data)
-
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('cart:payment'))
-
         order = Order.objects.get(user=self.user)
         self.assertEqual(order.billing_address.address_line_1, self.address_data['billing_address_line1'])
         self.assertEqual(order.billing_address.address_line_2, self.address_data['billing_address_line2'])
@@ -494,16 +380,12 @@ class CheckoutViewTest(TestCase):
 
     def test_checkout_view_with_invalid_form_data(self):
         self.client.force_login(self.user)
-        form_data = {}  # Missing required form data
+        form_data = {}
         response = self.client.post(reverse('cart:checkout'), data=form_data)
-
-        self.assertEqual(response.status_code, 200)  # The view should return 200 for invalid form data
-
-        order = Order.objects.filter(user=self.user).first()
-
+        self.assertEqual(response.status_code, 200)
         form = response.context['form']
-        self.assertFalse(form.is_valid())  # The form should not be valid
-        self.assertTrue(form.errors)  # The form should have errors for missing required fields
+        self.assertFalse(form.is_valid())
+        self.assertTrue(form.errors)
 
 
 class PaymentViewTest(TestCase):
@@ -519,39 +401,29 @@ class ConfirmOrderViewTest(TestCase):
         self.client = Client()
         self.url = reverse('cart:confirm-order')
 
-
     def test_confirm_order_success(self):
-        # Simulate a successful payment response
         payment_data = {
             "purchase_units": [
                 {
                     "amount": {
-                        "value": "100.00"  # Replace with the appropriate payment value
+                        "value": "100.00"
                     }
                 }
             ]
         }
 
-
         response = self.client.post(self.url, data=json.dumps(payment_data), content_type='application/json')
-
-        # Check if the response is successful
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"data": "Success"})
-
-        # Check if the payment and order are created and updated correctly in the database
         order = Order.objects.get(id=self.client.session.get('order_id'))
         payment = Payment.objects.get(order=order)
         self.assertTrue(payment.successful)
-        self.assertEqual(payment.amount, 100.00)  # Replace with the expected payment amount
+        self.assertEqual(payment.amount, 100.00)
         self.assertEqual(payment.payment_method, 'paypal')
         self.assertEqual(payment.raw_response, json.dumps(payment_data))
-
-        order.refresh_from_db()  # Refresh the order from the database to get updated data
+        order.refresh_from_db()
         self.assertTrue(order.ordered)
         self.assertIsNotNone(order.ordered_date)
-
-        # Check the payment's reference number format
         reference_number_expected = f"PAYMENT-{order}-{payment.id}"
         self.assertEqual(payment.reference_number, reference_number_expected)
 
@@ -567,7 +439,7 @@ class ThankYouViewTest(TestCase):
 class OrderDetailViewTest(TestCase):
 
     def setUp(self):
-        self.client=Client()
+        self.client = Client()
         self.user = User.objects.create_user(username='testuser', password='testpassword')
         self.order = Order(user=self.user)
         self.order.save()
@@ -593,38 +465,27 @@ class DeliveryViewTestCase(TestCase):
         self.client.force_login(self.user)
 
     def test_delivery_view(self):
-        # Ensure the delivery view returns HTTP 200 (OK) status code
         response = self.client.get(reverse('cart:delivery'))
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, 'cart/delivery.html')
         self.assertTrue('form' in response.context)
 
     def test_delivery_form_valid(self):
-        # Test if the form is valid and the order is saved correctly
         form_data = {'delivery': self.delivery.id}
         print(form_data)
         response = self.client.post(reverse('cart:delivery'), data=form_data)
-        self.assertEqual(response.status_code, 302)  # Expecting a redirect after form submission
-
-        # Check if the order is updated with the selected delivery
+        self.assertEqual(response.status_code, 302)
         order = Order.objects.get(id=self.client.session.get('order_id'))
         self.assertEqual(order.delivery, self.delivery)
 
     def test_delivery_form_invalid(self):
-        # Test if the form is invalid when delivery is not selected
-        form_data = {}  # Empty data, should be invalid
+        form_data = {}
         response = self.client.post(reverse('cart:delivery'), form_data)
-        self.assertEqual(response.status_code, 200)  # Form is not redirected because it's invalid
-
-        # Check if the form contains errors
+        self.assertEqual(response.status_code, 200)
         form = response.context['form']
         self.assertTrue(form.errors)
 
     def test_delivery_model(self):
-        # Test the Delivery model's __str__ method
         delivery = Delivery.objects.create(type='Express', cost=1000)
         self.assertEqual(str(delivery), 'Express - 10.00 zł')
-
-        # Test the get_total method
         self.assertEqual(delivery.get_total(), '10.00')
-

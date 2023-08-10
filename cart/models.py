@@ -1,8 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 from django.db.models.signals import pre_save
-from django.dispatch import receiver
-from django.dispatch.dispatcher import logger
 from django.utils.text import slugify
 from django.shortcuts import reverse
 
@@ -49,7 +47,7 @@ class Delivery(models.Model):
     cost = models.IntegerField(default=0)
 
     def get_total(self):
-        return '{:.2f}'.format(self.cost/100)
+        return '{:.2f}'.format(self.cost / 100)
 
     def __str__(self):
         return f'{self.type} - {self.get_total()} zł'
@@ -80,7 +78,7 @@ class Order(models.Model):
 
     def get_subtotal(self):
         subtotal = self.get_raw_subtotal()
-        return '{:.2f}'.format(subtotal/100)
+        return '{:.2f}'.format(subtotal / 100)
 
     def get_raw_total(self):
         if self.delivery is None:
@@ -91,12 +89,11 @@ class Order(models.Model):
 
     def get_total(self):
         total = self.get_raw_total()
-        return '{:.2f}'.format(total/100)
+        return '{:.2f}'.format(total / 100)
 
     @property
     def reference_number(self):
         return f"ORDER-{self.pk}"
-
 
 
 class Payment(models.Model):
@@ -132,7 +129,6 @@ class Product(models.Model):
     secondary_categories = models.ManyToManyField('Category', blank=True)
     stock = models.IntegerField(default=0)
 
-
     def __str__(self):
         return self.title
 
@@ -143,7 +139,7 @@ class Product(models.Model):
         return reverse('cart:product-detail', kwargs={'slug': self.slug})
 
     def get_price(self):
-        return '{:.2f}'.format(self.price/100)
+        return '{:.2f}'.format(self.price / 100)
 
     def get_delete_url(self):
         return reverse('staff:product-delete', kwargs={'pk': self.pk})
@@ -159,6 +155,7 @@ class Product(models.Model):
 def pre_save_product_receiver(sender, instance, *args, **kwargs):
     if not instance.slug:
         instance.slug = slugify(instance.title)
+
 
 pre_save.connect(pre_save_product_receiver, sender=Product)
 
@@ -177,7 +174,7 @@ class OrderItem(models.Model):
         return self.quantity * self.product.price
 
     def get_total_item_price(self):
-        return '{:.2f}'.format(self.get_raw_total_item_price()/100)
+        return '{:.2f}'.format(self.get_raw_total_item_price() / 100)
 
 
 class Category(models.Model):
@@ -188,6 +185,3 @@ class Category(models.Model):
 
     class Meta:
         verbose_name_plural = 'Categories'
-
-
-
